@@ -15,8 +15,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:deploy": "VITE_BASE_PATH='/a-stock-picker/' vite",
+    "build:dev": "tsc -b && VITE_BASE_PATH='' vite build"
   },
   "dependencies": {
     "react": "^18.3.1",

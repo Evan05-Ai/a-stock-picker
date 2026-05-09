@@ -24,8 +24,8 @@ fi
 cd "$PROJECT_DIR" || exit 1
 echo "✅ 已进入项目目录：$(pwd)"
 
-# 把 node_modules/.bin 加入 PATH（让 vite 命令可用）
-export PATH="$PATH:$PROJECT_DIR/node_modules/.bin"
+# 把 npm 和 node_modules/.bin 加入 PATH
+export PATH="$PATH:/c/Users/evanc/AppData/Roaming/npm:$PROJECT_DIR/node_modules/.bin"
 
 # 检查 node_modules 是否存在
 if [ ! -d "node_modules" ]; then
@@ -51,4 +51,5 @@ echo "   按 Ctrl+C 停止服务器"
 echo "==============================================="
 echo ""
 
-npm run dev
+# 直接用 vite 启动，绕过 npm
+./node_modules/.bin/vite --host 0.0.0.0 --port 5173

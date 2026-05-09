@@ -1,134 +1,225 @@
-# 📈 A股智能选股系统
+# A股智能选股系统
 
-> 基于技术面、基本面、资金面的多维度 A 股智能选股与诊断系统
+一个功能完整的股票分析与选股网站，支持实时行情、智能选股、策略回测、AI分析等功能。
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![React](https://img.shields.io/badge/React-18-61DAFB.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)
-![Vite](https://img.shields.io/badge/Vite-6-646CFF.svg)
+## ⚠️ 重要说明（必读）
 
-## ✨ 功能特性
+### 当前部署状态
+- ✅ **静态页面已部署**：网站可以通过GitHub Pages访问
+- ❌ **后端API未运行**：GitHub Pages仅支持静态文件，无法运行Python FastAPI后端
+- ⚠️ **功能受限**：除了策略回测（纯前端实现）外，其他需要后端API的功能目前无法使用
 
-### 🔍 股票诊断
-输入任意 A 股代码，系统自动进行多维度分析：
+### 问题原因
+本项目的架构包含：
+- **前端**：HTML/CSS/JavaScript（可部署到GitHub Pages）
+- **后端**：Python FastAPI + akshare数据获取（需要Python运行环境）
 
-- **技术面分析**：MACD 金叉/死叉、KDJ 超买超卖、RSI 强弱、均线排列、布林带位置、成交量分析
-- **基本面分析**：PE/PB/ROE 估值、EPS/BPS、成长性评估
-- **资金面分析**：主力资金净流入、超大单/大单/中单/小单流向
-- **综合评分**：三维度加权评分（0-100），给出评级和操作建议
-- **K线图表**：专业K线图叠加 MA5/MA10/MA20 均线，支持缩放
+GitHub Pages是**静态网站托管服务**，无法运行Python代码，因此后端API无法正常工作。
 
-### 🏆 智能选股
-多因子策略筛选，自动排除科创板（688）和 ST 股票：
+---
 
-- **综合策略**：全维度综合评分排名
-- **趋势策略**：筛选上涨趋势中的股票
-- **价值策略**：筛选低 PE 价值股
-- **成长策略**：筛选强势高增长股
-- **动量策略**：筛选放量活跃股
-- 支持 PE、涨跌幅、换手率等多条件筛选
+## 📋 解决方案
 
-### 📊 大盘概览
-- 上证指数、深证成指、创业板指实时行情
-- 涨跌家数、涨停/跌停数统计
-- 市场情绪指标（恐惧 ↔ 贪婪）
+### 方案1：部署后端到支持Python的平台（推荐）
 
-## 🛠️ 技术栈
+#### 步骤1：准备后端部署
 
-| 类别 | 技术 |
-|------|------|
-| 前端框架 | React 18 + TypeScript |
-| 构建工具 | Vite 6 |
-| UI 组件 | Ant Design 5 |
-| 图表 | ECharts 5 |
-| 路由 | React Router 6 |
-| 数据源 | 东方财富公开 API（免费） |
+1. **注册Render/Railway/Heroku账号**（推荐Render，有免费额度）
+2. **连接GitHub仓库**：`Evan05-Ai/a-stock-picker`
+3. **配置后端服务**：
+   - 根目录：`backend`
+   - 启动命令：`uvicorn server:app --host 0.0.0.0 --port $PORT`
+   - 环境变量：无特殊要求
 
-## 🚀 快速开始
+#### 步骤2：修改前端API地址
 
-### 本地开发
+部署成功后，修改 `js/api.js` 中的 `API_BASE` 变量：
+
+```javascript
+// 修改前
+const API_BASE = 'http://localhost:8000';
+
+// 修改后（替换为你的后端部署地址）
+const API_BASE = 'https://your-backend-service.onrender.com';
+```
+
+#### 步骤3：重新部署前端
 
 ```bash
-# 克隆项目
+git add js/api.js
+git commit -m "更新后端API地址"
+git push origin main
+```
+
+---
+
+### 方案2：使用纯前端 + 第三方API
+
+如果不想部署后端，可以修改前端代码，直接调用第三方股票API：
+
+#### 可用的免费API：
+1. **新浪财经API**（实时行情）
+2. **东方财富API**（K线数据）
+3. **腾讯股票API**（实时数据）
+
+#### 修改示例（以实时行情为例）：
+
+```javascript
+// 替换原有的API调用
+async function fetchStockData(code) {
+    // 原有方式（需要后端）
+    // const response = await fetch(`${API_BASE}/stock/${code}`);
+    
+    // 新方式（直接调用第三方API）
+    const response = await fetch(`https://hq.sinajs.cn/list=${code}`);
+    const data = await response.text();
+    return parseSinaData(data);
+}
+```
+
+---
+
+### 方案3：使用模拟数据（开发测试用）
+
+如果只是想看到页面效果，可以暂时使用模拟数据：
+
+```javascript
+// 在 js/api.js 中添加模拟数据
+const MOCK_DATA = {
+    "600000": { code: "600000", name: "浦发银行", price: 8.50, change: 0.15 },
+    // ... 更多模拟数据
+};
+
+async function fetchStockData(code) {
+    // 返回模拟数据
+    return { code: 0, data: MOCK_DATA[code] };
+}
+```
+
+---
+
+## 🚀 快速开始（本地开发）
+
+### 1. 克隆项目
+
+```bash
 git clone https://github.com/Evan05-Ai/a-stock-picker.git
 cd a-stock-picker
-
-# 安装依赖
-npm install
-
-# 启动开发服务器
-npm run dev
 ```
 
-访问 `http://localhost:5173/a-stock-picker/` 即可使用。
-
-### 构建部署
+### 2. 启动后端（需要Python）
 
 ```bash
-# 构建生产版本
-npm run build
-
-# 预览构建结果
-npm run preview
+cd backend
+pip install -r requirements.txt
+uvicorn server:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## 📦 GitHub Pages 部署
+后端将在 `http://localhost:8000` 运行
 
-项目已配置 GitHub Actions 自动部署：
+### 3. 启动前端
 
-1. Fork 或上传项目到你的 GitHub
-2. 进入仓库 Settings → Pages
-3. Source 选择 **GitHub Actions**
-4. 推送到 `main` 分支即自动部署
+**方法1：使用VSCode Live Server插件**
+- 安装Live Server插件
+- 右键 `index.html` → Open with Live Server
 
-访问地址：`https://Evan05-Ai.github.io/a-stock-picker/`
-
-### 自定义部署路径
-
-如果需要修改部署路径（例如使用自定义域名），编辑 `vite.config.ts` 中的 `BASE_PATH`：
-
-```ts
-// 根路径部署（自定义域名）
-const BASE_PATH = '/'
-
-// 子目录部署（GitHub Pages 默认）
-const BASE_PATH = '/a-stock-picker/'
+**方法2：使用Python简易服务器**
+```bash
+cd a-stock-picker
+python -m http.server 8080
 ```
+访问 `http://localhost:8080`
+
+**方法3：使用Node.js**
+```bash
+npx serve
+```
+
+---
 
 ## 📁 项目结构
 
 ```
-src/
-├── api/              # API 接口层
-│   ├── eastmoney.ts  # 东方财富数据接口
-│   └── request.ts    # 请求封装
-├── components/       # 通用组件
-│   ├── KLineChart/   # K线图
-│   └── ScoreGauge/   # 评分仪表盘
-├── hooks/            # 自定义 Hooks
-├── pages/            # 页面
-│   ├── Home/         # 首页（大盘概览 + 推荐）
-│   ├── Diagnosis/    # 股票诊断
-│   ├── Selection/    # 智能选股
-│   └── About/        # 关于
-├── strategies/       # 策略引擎
-│   ├── technical.ts  # 技术指标计算
-│   ├── fundamental.ts # 基本面分析
-│   ├── scoring.ts    # 综合评分系统
-│   └── filters.ts    # 选股过滤器
-├── types/            # TypeScript 类型
-├── config.ts         # 全局配置
-├── App.tsx           # 应用入口
-└── main.tsx          # 入口文件
+a-stock-picker/
+├── index.html              # 主页
+├── pages/                 # 各功能页面
+│   ├── stock-data.html    # 实时行情
+│   ├── smart-pick.html    # 智能选股
+│   ├── backtest.html      # 策略回测
+│   └── ai-analysis.html   # AI分析
+├── css/                   # 样式文件
+│   └── style.css
+├── js/                    # JavaScript文件
+│   └── api.js            # API调用封装
+├── backend/              # Python后端
+│   ├── server.py         # FastAPI服务器
+│   └── requirements.txt  # Python依赖
+└── .github/
+    └── workflows/
+        └── deploy.yml    # GitHub Actions配置
 ```
 
-## ⚠️ 免责声明
+---
 
-- 本系统所有数据均来自东方财富公开接口，数据存在延迟，仅供参考
-- 分析结果不构成任何投资建议，不保证任何收益
-- 股市有风险，投资需谨慎，任何投资决策请自行判断，风险自担
-- 本项目仅用于学习和技术研究目的
+## 🔧 功能模块说明
 
-## 📄 License
+### ✅ 策略回测
+- **状态**：正常工作
+- **原因**：纯前端实现，使用本地计算
+- **功能**：模拟交易策略，计算收益率、最大回撤等指标
 
-[MIT](LICENSE) © [Evan Chen](https://github.com/Evan05-Ai)
+### ⚠️ 实时行情
+- **状态**：需要后端API
+- **功能**：显示股票实时价格、涨跌幅、成交量等
+
+### ⚠️ 智能选股
+- **状态**：需要后端API
+- **功能**：根据技术指标筛选股票
+
+### ⚠️ AI分析
+- **状态**：需要后端API
+- **功能**：使用AI模型分析股票走势
+
+---
+
+## 🐛 常见问题
+
+### Q1：为什么提示"获取数据失败"？
+**A**：因为后端API没有运行。GitHub Pages无法运行Python代码，需要按照上述"解决方案"章节部署后端。
+
+### Q2：策略回测为什么能正常工作？
+**A**：因为策略回测是纯前端实现，所有计算都在浏览器中完成，不需要调用后端API。
+
+### Q3：如何在本地测试所有功能？
+**A**：按照"快速开始"章节，同时启动后端（端口8000）和前端（端口8080）。
+
+### Q4：部署到GitHub Pages后，其他人能看到完整功能吗？
+**A**：不能。需要额外部署后端服务，并修改前端API地址。
+
+---
+
+## 📝 开发笔记
+
+### 已完成的配置
+- ✅ 项目结构创建
+- ✅ GitHub仓库推送
+- ✅ GitHub Actions自动部署配置
+- ✅ 前端页面开发
+- ✅ 后端API开发
+
+### 待完成的工作
+- ❌ 后端服务部署（Render/Railway等平台）
+- ❌ 前端API地址配置
+- ❌ 第三方API集成（可选）
+
+---
+
+## 📧 联系方式
+
+如有问题，请提交Issue或联系开发者。
+
+---
+
+**最后更新**：2026-05-09
+**项目地址**：https://github.com/Evan05-Ai/a-stock-picker
+**在线演示**：https://evan05-ai.github.io/a-stock-picker/

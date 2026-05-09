@@ -25,7 +25,22 @@ cd "$PROJECT_DIR" || exit 1
 echo "✅ 已进入项目目录：$(pwd)"
 
 # 把 npm 和 node_modules/.bin 加入 PATH
-export PATH="$PATH:/c/Users/evanc/AppData/Roaming/npm:$PROJECT_DIR/node_modules/.bin"
+# 先尝试用 which 找 npm，找不到就用常见路径
+NPM_PATH=""
+if which npm >/dev/null 2>&1; then
+    NPM_PATH=$(dirname $(which npm))
+elif [ -f "/c/Users/evanc/AppData/Roaming/npm/npm.cmd" ]; then
+    NPM_PATH="/c/Users/evanc/AppData/Roaming/npm"
+fi
+
+if [ -n "$NPM_PATH" ]; then
+    export PATH="$PATH:$NPM_PATH"
+    echo "✅ 已找到 npm：$NPM_PATH"
+else
+    echo "⚠️  未找到 npm，将尝试直接用 vite 启动..."
+fi
+
+export PATH="$PATH:$PROJECT_DIR/node_modules/.bin"
 
 # 检查 node_modules 是否存在
 if [ ! -d "node_modules" ]; then
@@ -51,5 +66,20 @@ echo "   按 Ctrl+C 停止服务器"
 echo "==============================================="
 echo ""
 
-# 直接用 vite 启动，绕过 npm
-./node_modules/.bin/vite --host 0.0.0.0 --port 5173
+# 启动开发服务器
+echo ""
+echo "🚀 正在启动开发服务器..."
+echo "   启动后访问：http://localhost:5173/"
+echo "   （如5173被占用，Vite会自动换端口，以终端显示为准）"
+echo "   按 Ctrl+C 停止服务器"
+echo "==============================================="
+echo ""
+
+# 智能选择启动方式：优先用 npm run dev，找不到 npm 才直接用 vite
+if which npm >/dev/null 2>&1; then
+    echo "✅ 使用 npm run dev 启动（标准方式）"
+    npm run dev
+else
+    echo "⚠️  未找到 npm，直接用 vite 启动..."
+    ./node_modules/.bin/vite --host 0.0.0.0 --port 5173
+fi

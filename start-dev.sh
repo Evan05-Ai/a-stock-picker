@@ -2,7 +2,7 @@
 # ============================================================
 #  A股选股系统 - 一键启动脚本
 #  使用方法：
-#    1. 在Git Bash里输入：bash /d/Ai工作/wby_股票选股页面/start-dev.sh
+#    1. 在Git Bash里输入：bash /d/Ai工作/wby_股票选股页面/a-stock-picker/start-dev.sh
 #    2. 或者双击此文件（需配置Git Bash为默认打开方式）
 # ============================================================
 
@@ -12,6 +12,21 @@ echo "==============================================="
 
 # 项目目录
 PROJECT_DIR="/d/Ai工作/wby_股票选股页面/a-stock-picker"
+
+# ============================================================
+#  关键修复：把 node/npm 所在目录加入 PATH
+#  用户在 Windows CMD 里 where node 显示：
+#  C:\Users\evanc\AppData\Roaming\npm\node.exe
+#  所以把这个目录加到 PATH
+# ============================================================
+export PATH="$PATH:/c/Users/evanc/AppData/Roaming/npm"
+
+# 同时把项目 node_modules/.bin 加入 PATH
+export PATH="$PATH:$PROJECT_DIR/node_modules/.bin"
+
+echo "✅ PATH 已配置，node/npm 应该可用了"
+node --version 2>/dev/null && echo "  node 可用" || echo "  ⚠️  node 仍不可用"
+npm --version 2>/dev/null && echo "  npm 可用" || echo "  ⚠️  npm 仍不可用"
 
 # 检查目录是否存在
 if [ ! -d "$PROJECT_DIR" ]; then
@@ -23,24 +38,6 @@ fi
 
 cd "$PROJECT_DIR" || exit 1
 echo "✅ 已进入项目目录：$(pwd)"
-
-# 把 npm 和 node_modules/.bin 加入 PATH
-# 先尝试用 which 找 npm，找不到就用常见路径
-NPM_PATH=""
-if which npm >/dev/null 2>&1; then
-    NPM_PATH=$(dirname $(which npm))
-elif [ -f "/c/Users/evanc/AppData/Roaming/npm/npm.cmd" ]; then
-    NPM_PATH="/c/Users/evanc/AppData/Roaming/npm"
-fi
-
-if [ -n "$NPM_PATH" ]; then
-    export PATH="$PATH:$NPM_PATH"
-    echo "✅ 已找到 npm：$NPM_PATH"
-else
-    echo "⚠️  未找到 npm，将尝试直接用 vite 启动..."
-fi
-
-export PATH="$PATH:$PROJECT_DIR/node_modules/.bin"
 
 # 检查 node_modules 是否存在
 if [ ! -d "node_modules" ]; then
@@ -57,15 +54,6 @@ pkill -f "node.*5174" 2>/dev/null
 pkill -f "node.*5175" 2>/dev/null
 sleep 2
 
-# 启动开发服务器（--host 让同一局域网可访问）
-echo ""
-echo "🚀 正在启动开发服务器..."
-echo "   启动后访问：http://localhost:5173/"
-echo "   （如5173被占用，Vite会自动换端口，以终端显示为准）"
-echo "   按 Ctrl+C 停止服务器"
-echo "==============================================="
-echo ""
-
 # 启动开发服务器
 echo ""
 echo "🚀 正在启动开发服务器..."
@@ -75,11 +63,4 @@ echo "   按 Ctrl+C 停止服务器"
 echo "==============================================="
 echo ""
 
-# 智能选择启动方式：优先用 npm run dev，找不到 npm 才直接用 vite
-if which npm >/dev/null 2>&1; then
-    echo "✅ 使用 npm run dev 启动（标准方式）"
-    npm run dev
-else
-    echo "⚠️  未找到 npm，直接用 vite 启动..."
-    ./node_modules/.bin/vite --host 0.0.0.0 --port 5173
-fi
+npm run dev

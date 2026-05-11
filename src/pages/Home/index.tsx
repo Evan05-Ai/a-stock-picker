@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Row, Col, Statistic, Tag, Spin, List, Button, Badge, Alert, Space } from 'antd'
 import { ArrowUpOutlined, ArrowDownOutlined, ThunderboltOutlined, ReloadOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import { fetchMarketIndices, fetchStockList, fetchMarketSentiment } from '@/api/eastmoney'
-import { generateSelectionList } from '@/strategies/filters'
-import type { MarketIndex, MarketSentiment, SelectionItem } from '@/types/stock'
+import { useMarketData } from '@/hooks/useMarketData'
 
 const SENTIMENT_MAP: Record<string, { label: string; color: string }> = {
   extreme_greed: { label: '极度贪婪', color: '#e74c3c' },
@@ -16,35 +13,20 @@ const SENTIMENT_MAP: Record<string, { label: string; color: string }> = {
 
 export default function Home() {
   const navigate = useNavigate()
-  const [indices, setIndices] = useState<MarketIndex[]>([])
-  const [sentiment, setSentiment] = useState<MarketSentiment | null>(null)
-  const [topStocks, setTopStocks] = useState<SelectionItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const {
+    loading,
+    indices,
+    sentiment,
+    topStocks,
+    lastUpdated,
+    refresh,
+    isAutoRefreshing,
+    startAutoRefresh,
+    stopAutoRefresh,
+  } = useMarketData()
 
-  const loadData = async () => {
-    setLoading(true)
-    try {
-      const [idx, sent, list] = await Promise.all([
-        fetchMarketIndices(),
-        fetchMarketSentiment(),
-        fetchStockList(1, 200, 'f3', 'desc'),
-      ])
-      setIndices(idx)
-      setSentiment(sent)
-      const selection = generateSelectionList(list.items)
-      setTopStocks(selection.slice(0, 10))
-    } catch (e) {
-      console.error('加载数据失败:', e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const getColorClass = (val: number) => val > 0 ? 'text-rise' : val < 0 ? 'text-fall' : 'text-flat'
+  const getColorClass = (val: number) =>
+    val > 0 ? 'text-rise' : val < 0 ? 'text-fall' : 'text-flat'
 
   return (
     <div className="fade-in">
@@ -65,7 +47,11 @@ export default function Home() {
               ✅ <strong>策略回测功能正常</strong>（纯前端实现）
             </p>
             <p style={{ margin: '8px 0' }}>
-              📖 查看 <a href="https://github.com/Evan05-Ai/a-stock-picker#readme" target="_blank" rel="noopener noreferrer">完整说明文档</a> 了解如何部署后端以启用完整功能。
+              📖 查看{' '}
+              <a href="https://github.com/Evan05-Ai/a-stock-picker#readme" target="_blank" rel="noopener noreferrer">
+                完整说明文档
+              </a>{' '}
+              了解如何部署后端以启用完整功能。
             </p>
           </div>
         }
@@ -74,8 +60,27 @@ export default function Home() {
       {/* 顶部操作栏 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 22 }}>📊 市场总览</h2>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新数据</Button>
+        <Space>
+          <Button
+            icon={<ReloadOutlined spin={isAutoRefreshing} />}
+            onClick={isAutoRefreshing ? stopAutoRefresh : startAutoRefresh}
+            type={isAutoRefreshing ? 'primary' : 'default'}
+            danger={isAutoRefreshing}
+          >
+            {isAutoRefreshing ? '⏸ 停止刷新' : '🔄 自动刷新'}
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading && !isAutoRefreshing}>
+            刷新数据
+          </Button>
+        </Space>
       </div>
+
+      {lastUpdated && (
+        <div style={{ marginBottom: 12, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+          最后更新：{lastUpdated}
+          {isAutoRefreshing && ' | 自动刷新中（每30秒）'}
+        </div>
+      )}
 
       <Spin spinning={loading}>
         {/* 大盘指数 */}
@@ -90,7 +95,11 @@ export default function Home() {
                   title={<span style={{ fontSize: 16, fontWeight: 600 }}>{idx.name}</span>}
                   value={idx.price}
                   precision={2}
-                  valueStyle={{ color: idx.changePercent >= 0 ? 'var(--color-rise)' : 'var(--color-fall)', fontSize: 28, fontWeight: 700 }}
+                  valueStyle={{
+                    color: idx.changePercent >= 0 ? 'var(--color-rise)' : 'var(--color-fall)',
+                    fontSize: 28,
+                    fontWeight: 700,
+                  }}
                   prefix={idx.changePercent >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   suffix={
                     <span style={{ fontSize: 14, marginLeft: 8 }}>
@@ -113,7 +122,10 @@ export default function Home() {
               <Col flex="auto">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 16, fontWeight: 600 }}>🌡️ 市场情绪</span>
-                  <Tag color={SENTIMENT_MAP[sentiment.sentiment]?.color} style={{ fontSize: 14, padding: '4px 12px' }}>
+                  <Tag
+                    color={SENTIMENT_MAP[sentiment.sentiment]?.color}
+                    style={{ fontSize: 14, padding: '4px 12px' }}
+                  >
                     {SENTIMENT_MAP[sentiment.sentiment]?.label} ({sentiment.sentimentScore})
                   </Tag>
                   <Badge color="var(--color-rise)" text={<span className="text-rise">上涨 {sentiment.riseCount}</span>} />
@@ -129,12 +141,21 @@ export default function Home() {
 
         {/* 今日推荐 Top10 */}
         <Card className="stock-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}
+          >
             <h3 style={{ margin: 0, fontSize: 18 }}>
               <ThunderboltOutlined style={{ color: 'var(--color-accent)', marginRight: 8 }} />
               今日综合评分 Top 10
             </h3>
-            <Button type="link" onClick={() => navigate('/selection')}>查看全部选股 →</Button>
+            <Button type="link" onClick={() => navigate('/selection')}>
+              查看全部选股 →
+            </Button>
           </div>
           <List
             dataSource={topStocks}
@@ -143,14 +164,30 @@ export default function Home() {
                 style={{ cursor: 'pointer', padding: '12px 8px', borderBottom: '1px solid var(--color-border)' }}
                 onClick={() => navigate(`/diagnosis/${item.quote.code}`)}
               >
-                <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 16, flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    gap: 16,
+                    flexWrap: 'wrap',
+                  }}
+                >
                   {/* 排名 */}
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%',
-                    background: idx < 3 ? 'var(--color-accent)' : 'var(--color-border)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: 14, flexShrink: 0,
-                  }}>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: idx < 3 ? 'var(--color-accent)' : 'var(--color-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      flexShrink: 0,
+                    }}
+                  >
                     {idx + 1}
                   </div>
 
@@ -162,23 +199,43 @@ export default function Home() {
 
                   {/* 价格 */}
                   <div style={{ minWidth: 80 }}>
-                    <div className={`num-font ${getColorClass(item.quote.changePercent)}`} style={{ fontWeight: 600, fontSize: 16 }}>
+                    <div
+                      className={`num-font ${getColorClass(item.quote.changePercent)}`}
+                      style={{ fontWeight: 600, fontSize: 16 }}
+                    >
                       {item.quote.price.toFixed(2)}
                     </div>
-                    <div className={`num-font ${getColorClass(item.quote.changePercent)}`} style={{ fontSize: 12 }}>
-                      {item.quote.changePercent >= 0 ? '+' : ''}{item.quote.changePercent.toFixed(2)}%
+                    <div
+                      className={`num-font ${getColorClass(item.quote.changePercent)}`}
+                      style={{ fontSize: 12 }}
+                    >
+                      {item.quote.changePercent >= 0 ? '+' : ''}
+                      {item.quote.changePercent.toFixed(2)}%
                     </div>
                   </div>
 
                   {/* 评分 */}
                   <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-                    <div style={{
-                      fontSize: 24, fontWeight: 700,
-                      color: item.score.total >= 65 ? 'var(--color-rise)' : item.score.total >= 45 ? '#f39c12' : 'var(--color-fall)',
-                    }}>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 700,
+                        color:
+                          item.score.total >= 65
+                            ? 'var(--color-rise)'
+                            : item.score.total >= 45
+                              ? '#f39c12'
+                              : 'var(--color-fall)',
+                      }}
+                    >
                       {item.score.total}
                     </div>
-                    <Tag color={item.score.total >= 65 ? 'red' : item.score.total >= 45 ? 'orange' : 'green'} style={{ fontSize: 11 }}>
+                    <Tag
+                      color={
+                        item.score.total >= 65 ? 'red' : item.score.total >= 45 ? 'orange' : 'green'
+                      }
+                      style={{ fontSize: 11 }}
+                    >
                       {item.score.rating}
                     </Tag>
                   </div>

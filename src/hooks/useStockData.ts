@@ -1,8 +1,9 @@
 /**
- * 股票数据 Hook
+ * 股票数据 Hook —— 支持自动刷新
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { fetchStockQuote, fetchKLineData, fetchMoneyFlow } from '@/api/eastmoney'
+import { fetchStockQuoteSina } from '@/api/sina'
 import { calculateTechnicalIndicators } from '@/strategies/technical'
 import { extractFundamental } from '@/strategies/fundamental'
 import { calculateDiagnosisScore } from '@/strategies/scoring'
@@ -13,36 +14,49 @@ interface UseStockDataReturn {
   error: string | null
   result: DiagnosisResult | null
   diagnose: (code: string) => Promise<void>
+  isAutoRefreshing: boolean
+  startAutoRefresh: (code: string, intervalMs?: number) => void
+  stopAutoRefresh: () => void
 }
 
 export function useStockData(): UseStockDataReturn {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<DiagnosisResult | null>(null)
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const diagnose = useCallback(async (code: string) => {
+  /** 执行一次诊断（核心逻辑） */
+  const diagnoseCore = useCallback(async (code: string) => {
     if (!code.trim()) {
       setError('请输入股票代码')
       return
     }
     setLoading(true)
     setError(null)
-    setResult(null)
 
     try {
-      // 并行获取数据
-      const [quote, klines, flow] = await Promise.all([
-        fetchStockQuote(code),
+      // 实时行情：新浪优先，失败则东方财富兜底
+      let quote: StockQuote
+      try {
+        quote = await fetchStockQuoteSina(code)
+      } catch {
+        console.warn('[行情] 新浪失败，切换东方财富', code)
+        quote = await fetchStockQuote(code)
+      }
+
+      // K线 + 资金流向仍用东方财富（数据更全）
+      const [klines, flow] = await Promise.all([
         fetchKLineData(code),
         fetchMoneyFlow(code),
       ])
 
       if (!quote || quote.price === 0) {
         setError('未找到该股票或股票已停牌')
+        setLoading(false)
         return
       }
 
-      // 计算指标
       const technical = calculateTechnicalIndicators(klines)
       const fundamental = extractFundamental(quote)
       const score = calculateDiagnosisScore(technical, fundamental, flow)
@@ -63,5 +77,40 @@ export function useStockData(): UseStockDataReturn {
     }
   }, [])
 
-  return { loading, error, result, diagnose }
+  /** 手动诊断 */
+  const diagnose = useCallback((code: string) => diagnoseCore(code), [diagnoseCore])
+
+  /** 开始自动刷新 */
+  const startAutoRefresh = useCallback((code: string, intervalMs = 5000) => {
+    stopAutoRefresh() // 先停掉已有的
+    setIsAutoRefreshing(true)
+
+    function scheduleNext() {
+      timerRef.current = setTimeout(async () => {
+        await diagnoseCore(code)
+        scheduleNext() // 完成后递归调度下一次
+      }, intervalMs)
+    }
+
+    diagnoseCore(code) // 立即执行一次
+    scheduleNext()
+  }, [diagnoseCore])
+
+  /** 停止自动刷新 */
+  const stopAutoRefresh = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    setIsAutoRefreshing(false)
+  }, [])
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return { loading, error, result, diagnose, isAutoRefreshing, startAutoRefresh, stopAutoRefresh }
 }

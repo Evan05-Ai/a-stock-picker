@@ -1,0 +1,17 @@
+{
+  "name": "A股智能选股系统",
+  "short_name": "选股系统",
+  "description": "A股多维度智能选股与诊断系统",
+  "start_url": "/a-stock-picker/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e74c3c",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["finance", "business"]
+}

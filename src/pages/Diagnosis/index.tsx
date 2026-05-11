@@ -1,7 +1,7 @@
 /**
- * 股票诊断页
+ * 股票诊断页 —— 支持自动刷新
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Input, Card, Row, Col, Tag, Descriptions, Spin, Alert, Button, Divider, Space, message } from 'antd'
 import { SearchOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
@@ -12,18 +12,35 @@ import { searchStock } from '@/api/eastmoney'
 
 const { Search } = Input
 
+const ratingColors: Record<string, string> = {
+  '强烈推荐': '#e74c3c',
+  '推荐': '#e67e22',
+  '中性': '#f39c12',
+  '谨慎': '#3498db',
+  '回避': '#c0392b',
+}
+
 export default function Diagnosis() {
   const { code: urlCode } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { loading, error, result, diagnose } = useStockData()
+  const { loading, error, result, diagnose, isAutoRefreshing, startAutoRefresh, stopAutoRefresh } = useStockData()
   const [searchValue, setSearchValue] = useState(urlCode ?? '')
+  const [lastUpdated, setLastUpdated] = useState('')
 
+  // URL 代码变化时：诊断 + 启动自动刷新
   useEffect(() => {
-    if (urlCode) {
-      setSearchValue(urlCode)
-      diagnose(urlCode)
-    }
-  }, [urlCode, diagnose])
+    if (!urlCode) return
+    setSearchValue(urlCode)
+    diagnose(urlCode)
+    // 启动自动刷新（每5秒）
+    startAutoRefresh(urlCode, 5000)
+    return () => stopAutoRefresh()
+  }, [urlCode])
+
+  // 诊断完成后更新时间
+  useEffect(() => {
+    if (result) setLastUpdated(new Date().toLocaleTimeString('zh-CN'))
+  }, [result])
 
   const onSearch = async (value: string) => {
     const trimmed = value.trim()
@@ -49,14 +66,6 @@ export default function Diagnosis() {
   }
 
   const getColorClass = (val: number) => val > 0 ? 'text-rise' : val < 0 ? 'text-fall' : 'text-flat'
-
-  const ratingColors: Record<string, string> = {
-    '强烈推荐': '#e74c3c',
-    '推荐': '#e67e22',
-    '中性': '#f39c12',
-    '谨慎': '#3498db',
-    '回避': '#c0392b',
-  }
 
   return (
     <div className="fade-in">
@@ -98,6 +107,16 @@ export default function Diagnosis() {
                         {result.quote.name}
                         <span style={{ color: 'var(--color-text-secondary)', fontSize: 16, marginLeft: 8 }}>{result.quote.code}</span>
                         {result.quote.isST && <Tag color="orange" style={{ marginLeft: 8 }}>ST</Tag>}
+                        <Button
+                          size="small"
+                          type={isAutoRefreshing ? 'primary' : 'default'}
+                          danger={isAutoRefreshing}
+                          onClick={() => isAutoRefreshing ? stopAutoRefresh() : startAutoRefresh(result.quote.code, 5000)}
+                          style={{ marginLeft: 12 }}
+                        >
+                          {isAutoRefreshing ? '⏸ 停止刷新' : '🔄 自动刷新'}
+                        </Button>
+                        {isAutoRefreshing && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 8 }}>每5秒自动更新中...</span>}
                       </h2>
                       <div style={{ marginTop: 12 }}>
                         <span className={`num-font ${getColorClass(result.quote.changePercent)}`} style={{ fontSize: 36, fontWeight: 700 }}>
@@ -110,7 +129,7 @@ export default function Diagnosis() {
                         {result.quote.changePercent >= 0 ? <ArrowUpOutlined className="text-rise" style={{ marginLeft: 8 }} /> : <ArrowDownOutlined className="text-fall" style={{ marginLeft: 8 }} />}
                       </div>
                     </div>
-                    <Tag color={ratingColors[result.score.rating]} style={{ fontSize: 16, padding: '6px 16px' }}>
+                    <Tag color={ratingColors[result.score.rating] ?? 'default'} style={{ fontSize: 16, padding: '6px 16px' }}>
                       {result.score.rating}
                     </Tag>
                   </div>
@@ -279,7 +298,8 @@ export default function Diagnosis() {
 
             {/* 免责声明 */}
             <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12, padding: '8px 0' }}>
-              诊断时间：{result.diagnoseTime} | 以上分析仅供参考，不构成投资建议
+              最后更新：{lastUpdated || result.diagnoseTime} | 以上分析仅供参考，不构成投资建议
+              {isAutoRefreshing && ' | ⏸ 自动刷新中（每5秒）'}
             </div>
           </>
         )}

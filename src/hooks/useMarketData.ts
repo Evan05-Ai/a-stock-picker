@@ -5,6 +5,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { fetchMarketIndices, fetchMarketSentiment, fetchStockList } from '@/api/eastmoney'
 import { generateSelectionList } from '@/strategies/filters'
+import { isTradingTime, msUntilNextTradingTime } from '@/utils/marketTime'
 import type { MarketIndex, MarketSentiment, SelectionItem } from '@/types/stock'
 
 interface UseMarketDataReturn {
@@ -60,10 +61,31 @@ export function useMarketData(): UseMarketDataReturn {
 
   const startAutoRefresh = useCallback((intervalMs = 30_000) => {
     stopAutoRefresh() // 先停掉已有的
+
+    // 非交易时段不启动，等待到下一个交易时段
+    if (!isTradingTime()) {
+      const waitMs = msUntilNextTradingTime()
+      console.log(`[市场自动刷新] 当前非交易时段，${Math.round(waitMs / 1000)}秒后重试`)
+      timerRef.current = setTimeout(() => {
+        startAutoRefresh(intervalMs)
+      }, Math.min(waitMs, 60000))
+      return
+    }
+
     setIsAutoRefreshing(true)
 
     function scheduleNext() {
       timerRef.current = setTimeout(async () => {
+        // 每次刷新前检查是否仍在交易时段
+        if (!isTradingTime()) {
+          console.log('[市场自动刷新] 交易时段结束，暂停刷新')
+          setIsAutoRefreshing(false)
+          const waitMs = msUntilNextTradingTime()
+          timerRef.current = setTimeout(() => {
+            startAutoRefresh(intervalMs)
+          }, Math.min(waitMs, 60000))
+          return
+        }
         await loadData()
         scheduleNext() // 完成后递归调度下一次
       }, intervalMs)

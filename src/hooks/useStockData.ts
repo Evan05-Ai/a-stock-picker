@@ -7,6 +7,7 @@ import { fetchStockQuoteSina } from '@/api/sina'
 import { calculateTechnicalIndicators } from '@/strategies/technical'
 import { extractFundamental } from '@/strategies/fundamental'
 import { calculateDiagnosisScore } from '@/strategies/scoring'
+import { isTradingTime, msUntilNextTradingTime } from '@/utils/marketTime'
 import type { DiagnosisResult, StockQuote, KLineData } from '@/types/stock'
 
 interface UseStockDataReturn {
@@ -80,13 +81,35 @@ export function useStockData(): UseStockDataReturn {
   /** 手动诊断 */
   const diagnose = useCallback((code: string) => diagnoseCore(code), [diagnoseCore])
 
-  /** 开始自动刷新 */
-  const startAutoRefresh = useCallback((code: string, intervalMs = 5000) => {
+  /** 开始自动刷新（默认30秒，仅交易时段有效） */
+  const startAutoRefresh = useCallback((code: string, intervalMs = 30000) => {
     stopAutoRefresh() // 先停掉已有的
+
+    // 非交易时段不启动，等待到下一个交易时段
+    if (!isTradingTime()) {
+      const waitMs = msUntilNextTradingTime()
+      console.log(`[自动刷新] 当前非交易时段，${Math.round(waitMs / 1000)}秒后重试`)
+      timerRef.current = setTimeout(() => {
+        startAutoRefresh(code, intervalMs)
+      }, Math.min(waitMs, 60000)) // 最多等1分钟检查一次
+      return
+    }
+
     setIsAutoRefreshing(true)
 
     function scheduleNext() {
       timerRef.current = setTimeout(async () => {
+        // 每次刷新前检查是否仍在交易时段
+        if (!isTradingTime()) {
+          console.log('[自动刷新] 交易时段结束，暂停刷新')
+          setIsAutoRefreshing(false)
+          // 安排到下一个交易时段
+          const waitMs = msUntilNextTradingTime()
+          timerRef.current = setTimeout(() => {
+            startAutoRefresh(code, intervalMs)
+          }, Math.min(waitMs, 60000))
+          return
+        }
         await diagnoseCore(code)
         scheduleNext() // 完成后递归调度下一次
       }, intervalMs)
@@ -94,7 +117,7 @@ export function useStockData(): UseStockDataReturn {
 
     diagnoseCore(code) // 立即执行一次
     scheduleNext()
-  }, [diagnoseCore])
+  }, [diagnoseCore, stopAutoRefresh])
 
   /** 停止自动刷新 */
   const stopAutoRefresh = useCallback(() => {

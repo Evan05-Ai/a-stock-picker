@@ -47,10 +47,17 @@ export default function Selection() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const list = await fetchStockList(1, 500, 'f6', 'desc')
+      const list = await fetchStockList(1, 100, 'f6', 'desc')
+      console.log('[智能选股] 获取数据:', list.total, list.items.length)
       setRawTotal(list.total)
-      const selection = generateSelectionList(list.items)
-      setAllItems(selection)
+      if (!list.items || list.items.length === 0) {
+        message.warning('未获取到股票数据，请检查网络或稍后重试')
+        setAllItems([])
+      } else {
+        const selection = generateSelectionList(list.items)
+        console.log('[智能选股] 过滤后:', selection.length)
+        setAllItems(selection)
+      }
     } catch (e) {
       message.error('加载股票列表失败')
       console.error(e)

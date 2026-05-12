@@ -30,28 +30,33 @@ export default function Home() {
 
   return (
     <div className="fade-in">
-      {/* ⚠️ 部署状态提示 */}
+      {/* 部署状态提示 */}
       <Alert
-        type="warning"
+        type="info"
         showIcon
         closable
         style={{ marginBottom: 20, borderRadius: 8 }}
-        message="⚠️ 当前部署状态：部分功能受限"
+        message="💡 当前状态：纯前端模式（GitHub Pages 静态托管）"
         description={
           <div>
             <p style={{ margin: '8px 0' }}>
-              本网站托管在 <strong>GitHub Pages</strong>，仅支持静态页面。
-              <strong>后端API未部署</strong>，因此实时行情、智能选股、AI分析等功能暂时无法使用。
+              本网站通过 <strong>JSONP</strong> 方式调用公开数据接口，以下功能可直接使用：
             </p>
+            <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
+              <li>✅ 市场总览（实时大盘指数、市场情绪、涨跌家数）</li>
+              <li>✅ 智能选股（多策略筛选、排序、分页查看）</li>
+              <li>✅ 股票诊断（实时行情 + 六维评分 + K线图）</li>
+              <li>✅ 策略回测（纯前端实现）</li>
+            </ul>
             <p style={{ margin: '8px 0' }}>
-              ✅ <strong>策略回测功能正常</strong>（纯前端实现）
+              ⚠️ <strong>AI 分析</strong>功能需要部署后端服务才能使用（本地开发时已可用）。
             </p>
             <p style={{ margin: '8px 0' }}>
               📖 查看{' '}
               <a href="https://github.com/Evan05-Ai/a-stock-picker#readme" target="_blank" rel="noopener noreferrer">
                 完整说明文档
               </a>{' '}
-              了解如何部署后端以启用完整功能。
+              了解如何本地部署以启用 AI 分析功能。
             </p>
           </div>
         }
@@ -63,7 +68,7 @@ export default function Home() {
         <Space>
           <Button
             icon={<ReloadOutlined spin={isAutoRefreshing} />}
-            onClick={isAutoRefreshing ? stopAutoRefresh : startAutoRefresh}
+            onClick={() => isAutoRefreshing ? stopAutoRefresh() : startAutoRefresh()}
             type={isAutoRefreshing ? 'primary' : 'default'}
             danger={isAutoRefreshing}
           >

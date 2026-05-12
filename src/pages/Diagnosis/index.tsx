@@ -32,8 +32,8 @@ export default function Diagnosis() {
     if (!urlCode) return
     setSearchValue(urlCode)
     diagnose(urlCode)
-    // 启动自动刷新（每5秒）
-    startAutoRefresh(urlCode, 5000)
+    // 启动自动刷新（每30秒，诊断页不需要盯盘级刷新）
+    startAutoRefresh(urlCode, 30000)
     return () => stopAutoRefresh()
   }, [urlCode])
 
@@ -111,12 +111,12 @@ export default function Diagnosis() {
                           size="small"
                           type={isAutoRefreshing ? 'primary' : 'default'}
                           danger={isAutoRefreshing}
-                          onClick={() => isAutoRefreshing ? stopAutoRefresh() : startAutoRefresh(result.quote.code, 5000)}
+                          onClick={() => isAutoRefreshing ? stopAutoRefresh() : startAutoRefresh(result.quote.code)}
                           style={{ marginLeft: 12 }}
                         >
                           {isAutoRefreshing ? '⏸ 停止刷新' : '🔄 自动刷新'}
                         </Button>
-                        {isAutoRefreshing && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 8 }}>每5秒自动更新中...</span>}
+                        {isAutoRefreshing && <span style={{ fontSize: 15, color: 'var(--color-text-secondary)', marginLeft: 8, fontWeight: 500 }}>每30秒自动更新中...</span>}
                       </h2>
                       <div style={{ marginTop: 12 }}>
                         <span className={`num-font ${getColorClass(result.quote.changePercent)}`} style={{ fontSize: 36, fontWeight: 700 }}>
@@ -299,7 +299,7 @@ export default function Diagnosis() {
             {/* 免责声明 */}
             <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 12, padding: '8px 0' }}>
               最后更新：{lastUpdated || result.diagnoseTime} | 以上分析仅供参考，不构成投资建议
-              {isAutoRefreshing && ' | ⏸ 自动刷新中（每5秒）'}
+              {isAutoRefreshing && ' | ⏸ 自动刷新中（每30秒）'}
             </div>
           </>
         )}

@@ -227,8 +227,23 @@ export async function fetchStockList(
   }
   const sortStr = _sortOrder === 'desc' ? '0' : '1'
   const url = `${API_PREFIX.push2}/api/qt/clist/get?pn=${_page}&pz=${_pageSize}&po=${sortStr}&np=1&fltt=2&invt=2&fid=${_sortField}&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048&fields=f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f14,f15,f16,f17,f20,f21,f23,f24,f25,f62,f100,f115,f128,f140,f141`
-  const data = await fetchJSONP<{ data: { total: number; diff: EMStockListItem[] } }>(url)
-  return { total: data.data?.total ?? 0, items: data.data?.diff ?? [] }
+  try {
+    const data = await fetchJSONP<{ data?: { total?: number; diff?: EMStockListItem[] | Record<string, EMStockListItem> } }>(url)
+    const total = data.data?.total ?? 0
+    let items: EMStockListItem[] = []
+    const diff = data.data?.diff
+    if (Array.isArray(diff)) {
+      items = diff
+    } else if (diff && typeof diff === 'object') {
+      // 某些情况下 diff 可能是对象而非数组
+      items = Object.values(diff)
+    }
+    console.log(`[fetchStockList] total=${total}, items=${items.length}`)
+    return { total, items }
+  } catch (e) {
+    console.error('[fetchStockList] JSONP 请求失败:', e)
+    return { total: 0, items: [] }
+  }
 }
 
 // ─── 市场情绪 ───

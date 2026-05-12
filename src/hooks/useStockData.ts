@@ -81,6 +81,15 @@ export function useStockData(): UseStockDataReturn {
   /** 手动诊断 */
   const diagnose = useCallback((code: string) => diagnoseCore(code), [diagnoseCore])
 
+  /** 停止自动刷新 */
+  const stopAutoRefresh = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    setIsAutoRefreshing(false)
+  }, [])
+
   /** 开始自动刷新（默认30秒，仅交易时段有效） */
   const startAutoRefresh = useCallback((code: string, intervalMs = 30000) => {
     stopAutoRefresh() // 先停掉已有的
@@ -118,15 +127,6 @@ export function useStockData(): UseStockDataReturn {
     diagnoseCore(code) // 立即执行一次
     scheduleNext()
   }, [diagnoseCore, stopAutoRefresh])
-
-  /** 停止自动刷新 */
-  const stopAutoRefresh = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-    setIsAutoRefreshing(false)
-  }, [])
 
   // 组件卸载时清理
   useEffect(() => {

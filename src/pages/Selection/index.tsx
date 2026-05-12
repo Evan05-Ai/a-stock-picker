@@ -2,7 +2,7 @@
  * 智能选股页
  */
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Row, Col, Select, Slider, Button, Table, Tag, Spin, Space, Statistic, message } from 'antd'
+import { Card, Row, Col, Select, Slider, Button, Table, Tag, Spin, Space, Statistic, message, Alert } from 'antd'
 import { FilterOutlined, ReloadOutlined, TrophyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { fetchStockList } from '@/api/eastmoney'
@@ -72,7 +72,7 @@ export default function Selection() {
   useEffect(() => { loadData() }, [])
 
   // 过滤和排序
-  const filteredItems = useMemo(() => {
+  const filteredResult = useMemo(() => {
     let items = [...allItems]
 
     // PE 过滤
@@ -104,6 +104,9 @@ export default function Selection() {
       return cap >= filter.marketCapRange[0] && cap <= filter.marketCapRange[1]
     })
 
+    // 策略过滤前保存一份（用于回退）
+    const beforeStrategy = [...items]
+
     // 策略过滤
     if (filter.strategy === 'trend') {
       items = items.filter(i => i.quote.changePercent > 0)
@@ -113,6 +116,13 @@ export default function Selection() {
       items = items.filter(i => i.quote.changePercent > 2)
     } else if (filter.strategy === 'momentum') {
       items = items.filter(i => i.quote.volumeRatio > 1.2)
+    }
+
+    // 如果策略过滤后为空，但策略过滤前有数据，回退显示全部
+    let isFallback = false
+    if (items.length === 0 && beforeStrategy.length > 0 && filter.strategy !== 'all') {
+      isFallback = true
+      items = beforeStrategy
     }
 
     // 排序
@@ -130,9 +140,11 @@ export default function Selection() {
       return (av - bv) * dir
     })
 
-    return items
+    return { items, isFallback }
   }, [allItems, filter])
 
+  const filteredItems = filteredResult.items
+  const isFallback = filteredResult.isFallback
   const filteredCount = filteredItems.length
 
   const getColorClass = (val: number) => val > 0 ? 'text-rise' : val < 0 ? 'text-fall' : 'text-flat'
@@ -299,12 +311,27 @@ export default function Selection() {
                 sortBy: 'score', sortOrder: 'desc',
               })}>重置筛选</Button>
               <span style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>
-                全市场 {rawTotal} 只 → 过滤后 {filteredCount} 只
+                全市场 {rawTotal} 只 → {isFallback ? '策略无匹配，显示全部' : '过滤后'} {filteredCount} 只
               </span>
             </Space>
           </Col>
         </Row>
       </Card>
+
+      {/* 策略回退提示 */}
+      {isFallback && (
+        <Alert
+          message={`当前${STRATEGIES.find(s => s.value === filter.strategy)?.label}条件下暂无匹配股票，已为您显示全部候选股票`}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Button size="small" type="primary" ghost onClick={() => setFilter(f => ({ ...f, strategy: 'all' }))}>
+              切换综合策略
+            </Button>
+          }
+        />
+      )}
 
       {/* 结果表格 */}
       <Card className="stock-card">

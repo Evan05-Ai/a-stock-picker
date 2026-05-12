@@ -47,15 +47,18 @@ export default function Selection() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const list = await fetchStockList(1, 100, 'f6', 'desc')
-      console.log('[智能选股] 获取数据:', list.total, list.items.length)
+      const list = await fetchStockList(1, 200, 'f3', 'desc')
+      console.log('[智能选股] 原始返回:', list.total, '只, items=', list.items.length)
       setRawTotal(list.total)
       if (!list.items || list.items.length === 0) {
-        message.warning('未获取到股票数据，请检查网络或稍后重试')
+        message.warning('未获取到股票数据（接口返回为空），请检查网络或稍后重试')
         setAllItems([])
       } else {
         const selection = generateSelectionList(list.items)
-        console.log('[智能选股] 过滤后:', selection.length)
+        console.log('[智能选股] 过滤后:', selection.length, '只')
+        if (selection.length === 0 && list.items.length > 0) {
+          message.info('接口返回了数据，但全部被过滤（停牌/ST/科创板），尝试调整筛选条件')
+        }
         setAllItems(selection)
       }
     } catch (e) {

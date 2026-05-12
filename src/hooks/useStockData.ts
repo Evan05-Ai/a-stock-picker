@@ -37,12 +37,16 @@ export function useStockData(): UseStockDataReturn {
     setError(null)
 
     try {
-      // 实时行情：新浪优先，失败则东方财富兜底
+      // 实时行情：开发环境新浪优先（速度快），生产环境直接用东方财富 JSONP（绕过 CORS）
       let quote: StockQuote
-      try {
-        quote = await fetchStockQuoteSina(code)
-      } catch {
-        console.warn('[行情] 新浪失败，切换东方财富', code)
+      if (import.meta.env.DEV) {
+        try {
+          quote = await fetchStockQuoteSina(code)
+        } catch {
+          console.warn('[行情] 新浪失败，切换东方财富', code)
+          quote = await fetchStockQuote(code)
+        }
+      } else {
         quote = await fetchStockQuote(code)
       }
 

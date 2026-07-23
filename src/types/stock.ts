@@ -163,6 +163,15 @@ export interface SelectionItem {
   matchedFactors: string[] // 命中的选股因子
 }
 
+/** 东方财富选股列表原始项 */
+export interface EMStockListItem {
+  f2: number | string; f3: number | string; f4: number | string; f5: number
+  f6: number; f7: number | string; f8: number; f9: number | string; f10: number | string
+  f12: string; f14: string; f15: number | string; f16: number | string; f17: number | string
+  f20: number | string; f21: number | string; f23: number | string; f24: number; f25: number
+  f62: number | string; f100: string; f115: number | string; f128: string; f140: string; f141: string
+}
+
 /** 市场情绪 */
 export interface MarketSentiment {
   riseCount: number

@@ -2,8 +2,7 @@
  * 选股过滤器和策略引擎
  */
 import { EXCLUDED_PREFIXES, EXCLUDE_ST } from '@/config'
-import type { EMStockListItem } from '@/api/eastmoney'
-import type { SelectionItem, StockQuote, DiagnosisScore } from '@/types/stock'
+import type { SelectionItem, StockQuote, DiagnosisScore, EMStockListItem } from '@/types/stock'
 import { calculateDiagnosisScore } from './scoring'
 import { extractFundamental } from './fundamental'
 
